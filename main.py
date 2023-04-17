@@ -7,8 +7,6 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn import preprocessing
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_validate
-from sklearn.metrics import recall_score
-from sklearn.metrics import make_scorer
 from sklearn.model_selection import KFold
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import LeaveOneOut
@@ -23,16 +21,6 @@ np.set_printoptions(threshold=sys.maxsize)
 
 wine = datasets.load_wine()
 
-
-# def custom_cv_2folds(X):
-#     n = X.shape[0]
-#     i = 1
-#     while i <= 2:
-#         idx = np.arange(n * (i-1)/2, n * i/2, dtype=int)
-#         yield idx, idx
-#         i += 1
-
-
 X_train, X_test, y_train, y_test = train_test_split(
     wine.data,
     wine.target,
@@ -45,21 +33,24 @@ clf = make_pipeline(preprocessing.StandardScaler(), svm.SVC(C=1))
 metrics = ['accuracy']
 
 # K-Fold
-kf = KFold(n_splits=3)
-generator = kf.split(wine)
-# for train, test in kf.split(wine):
-#     print("%s %s" % (train, test))
-scores = cross_val_score(clf, wine.data, wine.target, cv=kf)
-print("walidacja k_fold")
-print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-scores2 = cross_validate(clf, wine.data, wine.target, cv=kf, scoring=metrics)
+kf = KFold(n_splits=3)  # model walidaji k-fold, dzielimy na 3 foldy, bo wiemy, że są 3 klasy
+generator = kf.split(wine)  # rozdzielenie danych dot. win
+scores = cross_val_score(clf, wine.data, wine.target, cv=kf)  # testowanie modelu za pomocą cross_val_score
+# wine_data to parametry opisujące dane wino, natomisat wine.target to etykieta (klasa) wina
+print("Walidacja k_fold:")
+print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))  # cross_val score zwraca tablicę wyników,
+# zatem musimy wyliczyć z nich średnią oraz odchylenie standardowe
+scores2 = cross_validate(clf, wine.data, wine.target, cv=kf, scoring=metrics)  # testowanie modelu za pomocą
+# cross_validate, metrics jest 'accuracy' - pozostałe parametry analogicznie
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
+# cross_validate zwraca dictionary, zatem należy "wyciągnąć" z tego wynik badania dokładności 'test_accuracy'
+# i dopiero z tego wyznaczyć średnią i odchylenie standardowe
 
 # Repeated K-Fold
-random_state = 12883823
+random_state = 12883823  # tu wstawiamy dowolnego int'a, w przeciwnym razie algorytm sam wygeneruje tę wartość
+# i możemy za każdym razem otrzymać inny wynik testu z uwagi na inny podział grupy treningowej/testowej
 rkf = RepeatedKFold(n_splits=3, n_repeats=2, random_state=random_state)
-# for train, test in rkf.split(wine):
-#     print("%s %s" % (train, test))
+# wszytko inne analogicznie jak w k-fold, jedynie inny model
 scores = cross_val_score(clf, wine.data, wine.target, cv=rkf)
 print("walidacja rkf")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -67,9 +58,7 @@ scores2 = cross_validate(clf, wine.data, wine.target, cv=rkf, scoring=metrics)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
 # Leave One Out (LOO)
-loo = LeaveOneOut()
-# for train, test in loo.split(wine):
-#     print("%s %s" % (train, test))
+loo = LeaveOneOut()  # ten model potrzebnych w tym momencie konkretnych parametrów nie ma
 print("Walidacja loo:")
 scores = cross_val_score(clf, wine.data, wine.target, cv=loo)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -77,9 +66,7 @@ scores2 = cross_validate(clf, wine.data, wine.target, cv=loo, scoring=metrics)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
 # Leave P Out (LPO)
-lpo = LeavePOut(p=2)
-# for train, test in lpo.split(wine):
-#     print("%s %s" % (train, test))
+lpo = LeavePOut(p=2)  # 2 to wielkosc zestawu testowego
 scores = cross_val_score(clf, wine.data, wine.target, cv=lpo)
 print("walidacja lpo")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -87,22 +74,19 @@ scores2 = cross_validate(clf, wine.data, wine.target, cv=lpo, scoring=metrics)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
 # Walidacja losowa permutacji krzyżowych Shuffle & Split
-ss = ShuffleSplit(n_splits=3, test_size=0.25, random_state=0)
-# for train_index, test_index in ss.split(wine):
-#     print("%s %s" % (train_index, test_index))
+ss = ShuffleSplit(n_splits=5, test_size=0.25, random_state=0)  # 5 iteracji, dzielmy zestaw danych
+# na 75% treningowych i 25% testowych
 scores = cross_val_score(clf, wine.data, wine.target, cv=ss)
 print("walidacja ss")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 scores2 = cross_validate(clf, wine.data, wine.target, cv=ss, scoring=metrics)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
+
 # Iteratory walidacji krzyżowej ze stratyfikacją opartą na etykietach klas
 
 # Stratified k-fold
 skf = StratifiedKFold(n_splits=3)
-# for train, test in skf.split(wine.data, wine.target):
-#     print('train -  {}   |   test -  {}'.format(
-#         np.bincount(wine.target[train]), np.bincount(wine.target[test])))
 scores = cross_val_score(clf, wine.data, wine.target, cv=skf)
 print("walidacja skf:")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -110,24 +94,22 @@ scores2 = cross_validate(clf, wine.data, wine.target, cv=skf, scoring=metrics)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
 kf = KFold(n_splits=3)
-# for train, test in kf.split(wine.data, wine.target):
-#     print('train -  {}   |   test -  {}'.format(
-#         np.bincount(wine.target[train]), np.bincount(wine.target[test])))
 scores = cross_val_score(clf, wine.data, wine.target, cv=kf)
 print("walidacja kf2:")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 scores2 = cross_validate(clf, wine.data, wine.target, cv=kf, scoring=metrics)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
-# Iteratory w, walidacji krzyżowej dla zgrupowanych danych
+# Iteratory walidacji krzyżowej dla zgrupowanych danych
+
 # Grupowanie k-fold
-X = wine.data
+X = wine.data  # podzaiał danych na parametry oraz etykiety, stosowany tylko do drukowania wyników
 y = wine.target
-groups = np.rint(wine.data[:, 0])
+groups = np.rint(wine.data[:, 0])  # dane musimy zgrupować, tu grupowano wg. jednej z kolumn
+# po zaokrągleniu do liczny całkowitej
 gkf = GroupKFold(n_splits=3)
-# for train, test in gkf.split(X, y, groups=groups):
-#     print("%s %s" % (train, test))
-scores = cross_val_score(clf, wine.data, wine.target, cv=gkf, groups=groups)
+scores = cross_val_score(clf, wine.data, wine.target, cv=gkf, groups=groups)  # w ocenie musimy już wziąć pod uwagę
+# podział na grupy
 print("walidacja gkf:")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 scores2 = cross_validate(clf, wine.data, wine.target, cv=gkf, scoring=metrics, groups=groups)
@@ -135,8 +117,7 @@ print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['
 
 # StratifiedGroupKFold
 sgkf = StratifiedGroupKFold(n_splits=3)
-# for train, test in sgkf.split(X, y, groups=groups):
-#     print("%s %s" % (train, test))
+
 scores = cross_val_score(clf, wine.data, wine.target, cv=sgkf, groups=groups)
 print("walidacja sgkf")
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -164,7 +145,8 @@ scores2 = cross_validate(clf, wine.data, wine.target, cv=lpgo, scoring=metrics, 
 print("Accuracy %0.2f (+/- %0.2f)" % (scores2['test_accuracy'].mean(), scores2['test_accuracy'].std() * 2))
 
 # Group Shuffle Split
-gss = GroupShuffleSplit(n_splits=3, test_size=0.5, random_state=0)
+gss = GroupShuffleSplit(n_splits=3, test_size=0.5, random_state=0)  # dzielimy zestaw dancyh na treningowe
+# i testowe pół na pół
 # for train, test in gss.split(X, y, groups=groups):
 #     print("%s %s" % (train, test))
 scores = cross_val_score(clf, wine.data, wine.target, cv=gss, groups=groups)
@@ -181,6 +163,3 @@ print(tscv)
 scores = cross_val_score(clf, wine.data, wine.target, cv=tscv)
 print("walidacja tscv", scores)
 print("Accuracy %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
-
-
-
